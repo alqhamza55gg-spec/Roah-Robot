@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roah — Command Dashboard</title>
+  <meta name="description" content="Roah AI Robot Control Dashboard with live camera, GPS, voice assistant, and smart home controls">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+  <div class="animated-bg"></div>
+
+  <!-- ═══ Navigation Bar ═══ -->
+  <nav class="nav-bar">
+    <div class="nav-brand">
+      <div class="nav-brand-dot"></div>
+      ROAH COMMAND
+    </div>
+    <div class="nav-links">
+      <span class="ws-status">
+        <span class="ws-dot connecting" id="ws-dot"></span>
+        <span id="ws-status-text">Connecting...</span>
+      </span>
+      <button class="nav-link on" id="btn-power">⏻ System ON</button>
+      <button class="nav-link" id="btn-logout" style="color: var(--accent-red);">🔒 Lock</button>
+    </div>
+  </nav>
+
+  <!-- ═══ Dashboard Grid ═══ -->
+  <main class="dashboard">
+    <div class="dashboard-grid">
+
+      <!-- ─── Panel 1: Live Camera Feed ─────────────────────────── -->
+      <section class="glass-panel glow-cyan animate-fadeIn">
+        <div class="panel-header">
+          <h3 class="panel-title">📹 Live Camera Feed</h3>
+          <span class="panel-badge" id="camera-res">HD Ready</span>
+        </div>
+        <div class="camera-container">
+          <video id="camera-feed" class="camera-video hidden" autoplay muted playsinline></video>
+          <div id="camera-placeholder" class="camera-placeholder">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 7l-7 5 7 5V7z"/>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+            </svg>
+            <span>Click to activate camera</span>
+          </div>
+          <div class="recording-dot" id="recording-dot"></div>
+          <div class="camera-controls">
+            <button class="cam-btn" id="btn-cam-toggle" title="Toggle Camera">📷</button>
+            <button class="cam-btn" id="btn-cam-snapshot" title="Snapshot">📸</button>
+            <button class="cam-btn" id="btn-cam-record" title="Record">⏺</button>
+            <button class="cam-btn" id="btn-cam-fullscreen" title="Fullscreen">⛶</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── Panel 2: GPS Map ──────────────────────────────────── -->
+      <section class="glass-panel glow-green animate-fadeIn" style="animation-delay: 0.05s;">
+        <div class="panel-header">
+          <h3 class="panel-title">🗺️ Real-Time GPS Map</h3>
+          <span class="panel-badge text-green">LIVE</span>
+        </div>
+        <div class="map-wrapper">
+          <div id="map-container"></div>
+          <div class="map-controls">
+            <button class="map-btn" id="btn-gps-locate" title="My Location">📍</button>
+            <button class="map-btn" id="btn-gps-center" title="Center Robot">🤖</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── Panel 3: Roah Voice Assistant ─────────────────────── -->
+      <section class="glass-panel glow-purple animate-fadeIn" style="animation-delay: 0.1s;">
+        <div class="panel-header">
+          <h3 class="panel-title">🤖 Roah Assistant</h3>
+          <span class="panel-badge" id="voice-status-text">Ready</span>
+        </div>
+        <div class="chat-container">
+          <div class="roah-header">
+            <div class="roah-avatar" id="roah-avatar">
+              <span style="font-size: 1.8rem;">🤖</span>
+            </div>
+            <div class="roah-info">
+              <span class="roah-name">Roah</span>
+              <span class="roah-status">AI Assistant • Online</span>
+            </div>
+          </div>
+          <div class="chat-messages" id="roah-messages">
+            <!-- Messages injected by JS -->
+          </div>
+          <div class="waveform-container hidden" id="voice-waveform">
+            <div class="waveform-bar"></div>
+            <div class="waveform-bar"></div>
+            <div class="waveform-bar"></div>
+            <div class="waveform-bar"></div>
+            <div class="waveform-bar"></div>
+          </div>
+          <form class="chat-input-bar" id="roah-chat-form">
+            <input type="text" class="chat-text-input" id="roah-text-input" placeholder="Ask Roah anything..." autocomplete="off">
+            <button type="submit" class="btn-send" id="btn-roah-send">Send</button>
+            <button type="button" class="btn-voice" id="btn-roah-voice" title="Voice Input">🎤</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- ─── Panel 4: Robot Drive Controls ─────────────────────── -->
+      <section class="glass-panel glow-cyan animate-fadeIn" style="animation-delay: 0.15s;">
+        <div class="panel-header">
+          <h3 class="panel-title">🎮 Drive Controls</h3>
+          <span class="panel-badge" id="drive-status">STOPPED</span>
+        </div>
+        <div class="drive-grid">
+          <div></div>
+          <button class="drive-btn" id="btn-fwd">▲</button>
+          <div></div>
+          <button class="drive-btn" id="btn-left">◀</button>
+          <button class="drive-btn stop" id="btn-stop">STOP</button>
+          <button class="drive-btn" id="btn-right">▶</button>
+          <div></div>
+          <button class="drive-btn" id="btn-rev">▼</button>
+          <div></div>
+        </div>
+        <div class="telemetry-grid" style="margin-top: 1rem;">
+          <div class="telemetry-card">
+            <div class="telemetry-label">Speed</div>
+            <div class="telemetry-value cyan" id="val-speed">0.0 m/s</div>
+          </div>
+          <div class="telemetry-card">
+            <div class="telemetry-label">Heading</div>
+            <div class="telemetry-value cyan" id="val-heading">0°</div>
+          </div>
+          <div class="telemetry-card">
+            <div class="telemetry-label">Battery</div>
+            <div class="telemetry-value green" id="val-battery">98%</div>
+          </div>
+          <div class="telemetry-card">
+            <div class="telemetry-label">CPU</div>
+            <div class="telemetry-value amber" id="val-cpu">14%</div>
+          </div>
+        </div>
+        <div style="margin-top: 0.75rem;">
+          <div class="telemetry-label">Thermal</div>
+          <div class="progress-track"><div class="progress-fill cyan" id="bar-thermal" style="width: 38%;"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-muted);margin-top:4px;">
+            <span id="val-temp">32°C</span>
+            <span>Limit: 85°C</span>
+          </div>
+        </div>
+        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.75rem;">Use <b style="color:var(--accent-cyan)">W A S D</b> or Arrow Keys. <b style="color:var(--accent-red)">Space</b> = Emergency Stop</p>
+      </section>
+
+      <!-- ─── Panel 5: Bluetooth & Translation ──────────────────── -->
+      <section class="glass-panel glow-amber animate-fadeIn" style="animation-delay: 0.2s; --border-glow-amber: rgba(245, 158, 11, 0.3);">
+        <div class="panel-header">
+          <h3 class="panel-title">📡 Bluetooth & Translation</h3>
+        </div>
+
+        <!-- Bluetooth Sub-section -->
+        <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--accent-cyan);">Bluetooth Devices</h4>
+        <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;">
+          <button class="cam-btn" id="btn-bt-scan" title="Scan">🔍</button>
+          <span class="telemetry-label" id="bt-status" style="align-self:center;">No devices</span>
+        </div>
+        <div class="bt-device-list" id="bt-devices"></div>
+
+        <hr style="border: none; border-top: 1px solid var(--border-glass); margin: 1rem 0;">
+
+        <!-- Translation Sub-section -->
+        <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--accent-amber);">Real-Time Translation</h4>
+        <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
+          <select class="translate-select" id="lang-source">
+            <option value="en">English</option>
+            <option value="ar">Arabic</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="zh">Chinese</option>
+            <option value="ja">Japanese</option>
+            <option value="ko">Korean</option>
+            <option value="hi">Hindi</option>
+            <option value="pt">Portuguese</option>
+          </select>
+          <button class="cam-btn" id="btn-swap-langs" title="Swap Languages">🔄</button>
+          <select class="translate-select" id="lang-target">
+            <option value="ar">Arabic</option>
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="zh">Chinese</option>
+            <option value="ja">Japanese</option>
+            <option value="ko">Korean</option>
+            <option value="hi">Hindi</option>
+            <option value="pt">Portuguese</option>
+          </select>
+        </div>
+        <div class="translate-grid">
+          <textarea class="translate-textarea" id="text-source" placeholder="Enter text..."></textarea>
+          <textarea class="translate-textarea" id="text-result" placeholder="Translation..." readonly></textarea>
+        </div>
+        <button class="btn-primary" id="btn-translate" style="width:100%;margin-top:0.5rem;padding:10px;">Translate</button>
+        <div id="translation-history" style="margin-top:0.75rem;"></div>
+      </section>
+
+      <!-- ─── Panel 6: Cooking & Tasks ──────────────────────────── -->
+      <section class="glass-panel glow-purple animate-fadeIn" style="animation-delay: 0.25s;">
+        <div class="panel-header">
+          <h3 class="panel-title">🍳 Cooking & Tasks</h3>
+        </div>
+
+        <!-- Cooking -->
+        <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--accent-purple);">Recipes</h4>
+        <div class="recipe-grid" id="recipe-grid">
+          <div class="recipe-card">
+            <div class="recipe-name">Pasta Carbonara</div>
+            <div class="recipe-desc">Classic Italian cream pasta</div>
+            <button class="btn-recipe" onclick="startCooking('Pasta Carbonara')">Cook</button>
+          </div>
+          <div class="recipe-card">
+            <div class="recipe-name">Chicken Shawarma</div>
+            <div class="recipe-desc">Spiced Middle Eastern wrap</div>
+            <button class="btn-recipe" onclick="startCooking('Chicken Shawarma')">Cook</button>
+          </div>
+          <div class="recipe-card">
+            <div class="recipe-name">Kabsa Rice</div>
+            <div class="recipe-desc">Saudi aromatic rice dish</div>
+            <button class="btn-recipe" onclick="startCooking('Kabsa (Saudi Rice)')">Cook</button>
+          </div>
+          <div class="recipe-card">
+            <div class="recipe-name">Stir-Fry Veggies</div>
+            <div class="recipe-desc">Quick Asian-style vegetables</div>
+            <button class="btn-recipe" onclick="startCooking('Stir-Fry Vegetables')">Cook</button>
+          </div>
+        </div>
+
+        <div class="hidden" id="cooking-status" style="margin-top:1rem;padding:1rem;background:rgba(168,85,247,0.1);border-radius:12px;border:1px solid rgba(168,85,247,0.2);">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:600;color:var(--accent-purple);" id="cook-recipe-name"></span>
+            <button class="btn-recipe" onclick="stopCooking()" style="border-color:var(--accent-red);color:var(--accent-red);padding:4px 10px;font-size:0.75rem;">Cancel</button>
+          </div>
+          <p style="font-size:0.8rem;margin-top:6px;color:var(--text-secondary);" id="cook-step-desc"></p>
+          <div class="progress-track" style="margin-top:8px;"><div class="progress-fill purple" id="bar-cook-progress"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-muted);margin-top:4px;">
+            <span>Progress: <span id="cook-progress-pct">0%</span></span>
+            <span>Temp: <span id="cook-temp">0°C</span></span>
+          </div>
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--border-glass);margin:1rem 0;">
+
+        <!-- Household Tasks -->
+        <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--accent-green);">Household Tasks</h4>
+        <div class="task-grid">
+          <button class="btn-task" onclick="startTask('Clean Living Room')">🧹 Clean Room</button>
+          <button class="btn-task" onclick="startTask('Vacuum Floors')">🧹 Vacuum</button>
+          <button class="btn-task" onclick="startTask('Do Laundry')">👕 Laundry</button>
+          <button class="btn-task" onclick="startTask('Water Plants')">🌱 Water Plants</button>
+        </div>
+        <div class="hidden" id="task-status" style="margin-top:0.75rem;padding:0.75rem;background:rgba(34,197,94,0.1);border-radius:10px;border:1px solid rgba(34,197,94,0.2);">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:500;" id="task-current-name"></span>
+            <button onclick="cancelTask()" style="background:none;border:none;color:var(--accent-red);cursor:pointer;font-size:0.8rem;">Cancel</button>
+          </div>
+          <div class="progress-track" style="margin-top:6px;"><div class="progress-fill green" id="bar-task-progress"></div></div>
+        </div>
+      </section>
+
+      <!-- ─── System Event Logs — Full Width ────────────────────── -->
+      <section class="glass-panel full-width animate-fadeIn" style="animation-delay: 0.3s;">
+        <div class="panel-header">
+          <h3 class="panel-title">📋 System Event Logs</h3>
+          <span class="panel-badge" id="connection-count">0 connections</span>
+        </div>
+        <div class="terminal-container" id="system-logs"></div>
+      </section>
+
+    </div>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/roah-brain.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/camera.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/voice.js"></script>
+  <script src="js/bluetooth.js"></script>
+  <script src="js/translator.js"></script>
+</body>
+</html>
